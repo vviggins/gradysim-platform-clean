@@ -12,10 +12,12 @@ class SenderType(int, Enum):
 class SimpleMessage:
     sender: SenderType
     content: int
+    id: int
 
-    def __init__(self, sender: SenderType, content: int) -> None:
+    def __init__(self, sender: SenderType, content: int,id: int) -> None:
         self.sender = sender
         self.content = content
+        self.id = id
 
     def to_json(self):
         return json.dumps(self.__dict__)

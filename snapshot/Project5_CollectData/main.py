@@ -49,8 +49,9 @@ def run_simulation(real_time: bool):
     # builder.add_node(SimpleProtocolMobile, (-3.9000000000000004, 3.0, 0.0))
     # builder.add_node(SimpleProtocolMobile, (-0.9000000000000004, -6.0, 0.0))
 
-    # Sensor locations  传感器节点，需要很多个，那就用文件加载
-    sensor_file = './waypoint/waypoint1.txt'
+    # 从这个地方加载TSP节点文件，也就是以源文件
+    #读取点
+    sensor_file = './waypoint/tsp_100_nodes_file1.txt'
     add_sensors_from_file(builder, sensor_file)
 
     # Simulation

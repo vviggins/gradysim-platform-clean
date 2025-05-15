@@ -33,7 +33,7 @@ class SimpleProtocolSensor(IProtocol):
         if message.sender == SenderType.DRONE:
             self._logger.debug(f"SimpleProtocolSensor received packet from DRONE: {self.packets}")
 
-            response = SimpleMessage(sender=SenderType.SENSOR, content=self.packets)
+            response = SimpleMessage(sender=SenderType.SENSOR, content=self.packets, id = self.provider.get_id())
             self.provider.send_communication_command(
                 BroadcastMessageCommand(message=response.to_json())
             )

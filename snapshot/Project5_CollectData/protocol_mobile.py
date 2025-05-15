@@ -158,10 +158,13 @@ from gradysim.protocol.messages.telemetry import Telemetry
 from gradysim.protocol.interface import IProtocol
 from message import SimpleMessage, SenderType
 from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand, SetSpeedMobilityCommand
+from protocol_sensor import SimpleProtocolSensor
 
 
 class SimpleProtocolMobile(IProtocol):
+
     def __init__(self):
+
         #以下是无人机自带的收集数据包相关内容
         self.packets: int = 0
 
@@ -186,13 +189,18 @@ class SimpleProtocolMobile(IProtocol):
         #以下是无人机写数据的时间
         self.last_written_data = None
         self.last_write_time = 0  # 记录上次写入的时间
-    
+
+        #以下是无人机统计通信节点的部分
+        self.successful_nodes = set()  # 记录成功通信的节点
+        self.total_waypoints = 0  # 总节点数（从文件读取）
+
+
     def save_sensor_data(self):
         """ 只有当数据发生变化，并且上次写入超过 1 秒，才写入日志 """
 
         current_time = time.time()
 
-        if self.packets != self.last_written_data and current_time - self.last_write_time > 1:
+        if self.packets != self.last_written_data and current_time - self.last_write_time > 0.5:
             with open(self.data_log_file, "a") as f:
                 f.write(f"Total Data from Sensors: {self.packets}\n")
             self.last_written_data = self.packets
@@ -211,21 +219,32 @@ class SimpleProtocolMobile(IProtocol):
             self, MissionMobilityConfiguration(loop_mission=LoopMission.RESTART)
         )
 
+        """
+        如果是刚接触这个项目的人，可以用添加这种简单的飞行点来熟悉，下面是用文件，文件里面已经包含点了，文件的具体格式可以打开参考一下
+        self.mission.start_mission(mission=[(20, 20, 5), (20, -20, 5), (-20, -20, 5), (-20, 20, 5)])
+        """
 
-        # 如果是刚接触这个项目的人，可以用添加这种简单的飞行点来熟悉，下面是用文件，文件里面已经包含点了，文件的具体格式可以打开参考一下
-        # self.mission.start_mission(
-        #     mission=[(20, 20, 5), (20, -20, 5), (-20, -20, 5), (-20, 20, 5)]
-        # )
-  
-        waypoint_file = "./waypoint/waypoint1.txt"
+        """
+         这个地方的waypoint路线点，就是后期BQ算法生成的最优路径，拿过来，放在这个地方跑一下。
+         跑出来的就是最优路径
+         注意区分刚刚和main函数里面的不同，main函数是点路径，这个地方是飞行路径
+        """
+
+        waypoint_file = "./waypoint/tsp_100_nodes_file1.txt"
         try:
             self.mission.start_mission_with_waypoint_file(waypoint_file)
         except Exception as e:
             self._logger.error(f"Failed to start mission from {waypoint_file}: {e}")
+
+        """动态统计一共有多少个节点"""
+        try:
+            with open(waypoint_file, 'r') as f:
+                self.total_waypoints = sum(1 for _ in f)
+        except Exception as e:
+            self._logger.error(f"Failed to read waypoint file: {e}")
   
 
-
-        # 在这个地方 增加各种各样的定时器
+        '''在这个地方 增加各种各样的定时器'''
         self.provider.tracked_variables["packets"] = self.packets
         self.provider.schedule_timer("", self.provider.current_time() + random.random())
         self.provider.schedule_timer("energy_consumption", self.provider.current_time() + 1)
@@ -237,12 +256,7 @@ class SimpleProtocolMobile(IProtocol):
             self._schedule_energy_consumption()
         elif timer == "charging_complete":
             self._complete_charging()
-        ping = SimpleMessage(sender=SenderType.DRONE, content=self.packets)
-        
-
-        
-
-
+        ping = SimpleMessage(sender=SenderType.DRONE, content=self.packets,id = self.provider.get_id())
 
         self.provider.send_communication_command(
             BroadcastMessageCommand(ping.to_json())
@@ -273,7 +287,7 @@ class SimpleProtocolMobile(IProtocol):
             self.packets += message.content
             self.provider.tracked_variables["packets"] = self.packets
             self.save_sensor_data()
-    
+            self.successful_nodes.add(message.id)  # message.content可以换成唯一ID（如sensor编号）这一行也是新加的
 
     # 处理遥测数据
     def handle_telemetry(self, telemetry: Telemetry):
@@ -283,9 +297,20 @@ class SimpleProtocolMobile(IProtocol):
     def finish(self):
         finish_statistics(self)
         with open(self.data_log_file, "a") as f:
+            """下面这两行是统计一共收集到了多少数据"""
             f.write(f"Total Data from Sensors: {self.packets}\n")  # 强制写入当前数据
             f.write(f"\nFinal Total Data from Sensors: {self.packets}\n")
 
+            """下面这9行是新需求1的完成。统计一次任务中数据收集完整率（有多少物联网节点的数据被收集到了）"""
+            success_count = len(self.successful_nodes)
+            fail_count = self.total_waypoints - success_count
+            success_rate = success_count / self.total_waypoints if self.total_waypoints > 0 else 0
+            fail_rate = fail_count / self.total_waypoints if self.total_waypoints > 0 else 0
+            f.write(f"\nTotal Waypoints (Nodes): {self.total_waypoints}\n")
+            f.write(f"Successful Communications: {success_count}\n")
+            f.write(f"Failed Communications: {fail_count}\n")
+            f.write(f"Success Rate: {success_rate:.2%}\n")
+            f.write(f"Failure Rate: {fail_rate:.2%}\n")
 
     def _schedule_energy_consumption(self):
         """每秒减少电量，低电量时触发充电"""
@@ -316,3 +341,5 @@ class SimpleProtocolMobile(IProtocol):
         self._logger.info("Charging complete. Battery is now full.")
         # 重新启动能量消耗
         self.provider.schedule_timer("energy_consumption", self.provider.current_time() + 1)
+
+

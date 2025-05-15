@@ -24,14 +24,14 @@ class SimpleProtocolGround(IProtocol):
 
     def handle_packet(self, message: str):
         message: SimpleMessage = SimpleMessage.from_json(message)
-        print(f"SimpleProtocolGround received packet: {self.packets}, {message.sender}")
+        # print(f"SimpleProtocolGround received packet: {self.packets}, {message.sender}")
 
         if message.sender == SenderType.DRONE:
             self.packets += message.content
             self.provider.tracked_variables["packets"] = self.packets
 
             response = SimpleMessage(
-                sender=SenderType.GROUND_STATION, content=self.packets
+                sender=SenderType.GROUND_STATION, content=self.packets, id = self.provider.get_id()
             )
             self.provider.send_communication_command(
                 BroadcastMessageCommand(response.to_json())
