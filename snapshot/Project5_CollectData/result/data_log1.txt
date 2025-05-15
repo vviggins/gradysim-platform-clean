@@ -1,0 +1,8 @@
+UAV Data Log:
+Total Data from Sensors: 18
+Total Data from Sensors: 21
+Total Data from Sensors: 22
+Total Data from Sensors: 23
+Total Data from Sensors: 23
+
+Final Total Data from Sensors: 23

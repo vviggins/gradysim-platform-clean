@@ -68,6 +68,7 @@ class CommunicationSource:
         self._logger.debug(f"Node {self.node.id} sending message to {endpoint.node.id}")
 
 
+
 class CommunicationException(Exception):
     pass
 
