@@ -107,3 +107,5 @@ print(f"成功率: {success_rate_no_opt:.2%}")
 print("\n=== 在线李雅普诺夫优化 ===")
 print(f"成功采集节点数: {len(collected_opt)} / {len(tsp_path)}")
 print(f"成功率: {success_rate_opt:.2%}")
+
+print
