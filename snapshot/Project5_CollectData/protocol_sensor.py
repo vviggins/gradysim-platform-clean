@@ -1,5 +1,6 @@
 import logging
 
+import time
 import random
 from gradysim.protocol.plugin.statistics import create_statistics, finish_statistics
 from gradysim.protocol.messages.communication import BroadcastMessageCommand
@@ -33,7 +34,8 @@ class SimpleProtocolSensor(IProtocol):
         if message.sender == SenderType.DRONE:
             self._logger.debug(f"SimpleProtocolSensor received packet from DRONE: {self.packets}")
 
-            response = SimpleMessage(sender=SenderType.SENSOR, content=self.packets, id = self.provider.get_id())
+            response = SimpleMessage(sender=SenderType.SENSOR, content=self.packets, id = self.provider.get_id(),
+                                     timestamp=self.provider.current_time())
             self.provider.send_communication_command(
                 BroadcastMessageCommand(message=response.to_json())
             )

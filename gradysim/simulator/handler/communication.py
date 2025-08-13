@@ -65,7 +65,7 @@ class CommunicationSource:
             message: Message being delivered
             endpoint: Destination of the message being delivered
         """
-        self._logger.debug(f"Node {self.node.id} sending message to {endpoint.node.id}")
+        # self._logger.debug(f"Node {self.node.id} sending message to {endpoint.node.id}")
 
 
 
@@ -78,7 +78,7 @@ class CommunicationMedium:
     """
     Conditions through which the messages are delivered. Can influence how and when messages can be delivered.
     """
-    transmission_range: float = 60
+    transmission_range: float = 5
     """Maximum range in meters for message delivery. Messages destined to nodes outside this range will not be delivered"""
 
     delay: float = 0

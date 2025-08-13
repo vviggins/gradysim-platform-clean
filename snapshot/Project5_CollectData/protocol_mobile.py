@@ -144,6 +144,7 @@
 
 
 import logging
+import math
 import random
 import time
 from gradysim.protocol.plugin.mission_mobility import (
@@ -154,11 +155,12 @@ from gradysim.protocol.plugin.mission_mobility import (
 from gradysim.protocol.plugin.statistics import create_statistics, finish_statistics
 from gradysim.protocol.messages.communication import BroadcastMessageCommand
 
+
 from gradysim.protocol.messages.telemetry import Telemetry
 from gradysim.protocol.interface import IProtocol
 from message import SimpleMessage, SenderType
 from gradysim.protocol.messages.mobility import GotoCoordsMobilityCommand, SetSpeedMobilityCommand
-from protocol_sensor import SimpleProtocolSensor
+
 
 
 class SimpleProtocolMobile(IProtocol):
@@ -176,9 +178,9 @@ class SimpleProtocolMobile(IProtocol):
         self._logger.propagate = False
 
         #以下是无人机电量相关内容
-        self.energy = 100  # 初始电池电量
+        self.energy = 10000  # 初始电池电量
         self.low_energy_threshold = 20  # 低电量阈值
-        self.energy_consumption_rate = 3  # 每秒消耗3点电量
+        self.energy_consumption_rate = 2  # 每秒消耗3点电量
         self.is_charging = False  # 是否正在充电
 
         #以下是无人机存储数据的地方
@@ -194,6 +196,13 @@ class SimpleProtocolMobile(IProtocol):
         self.successful_nodes = set()  # 记录成功通信的节点
         self.total_waypoints = 0  # 总节点数（从文件读取）
 
+        #以下是无人机实际总飞行距离
+        self.last_telemetry_position = None
+        self.total_flight_distance = 0.0
+
+        #以下是有关无人机收集数据时传输延迟的部分
+        self.total_communication_latency = 0.0
+        self.communitaion_events_count = 0
 
     def save_sensor_data(self):
         """ 只有当数据发生变化，并且上次写入超过 1 秒，才写入日志 """
@@ -211,9 +220,7 @@ class SimpleProtocolMobile(IProtocol):
         self._logger.debug("初始化无人机节点")
         print(f"[DEBUG] UAV 初始电量: {self.energy}")
 
-
-
-        create_statistics(self)  #统计数据函数
+        # create_statistics(self)  #统计数据函数
 
         self.mission: MissionMobilityPlugin= MissionMobilityPlugin(
             self, MissionMobilityConfiguration(loop_mission=LoopMission.RESTART)
@@ -256,7 +263,7 @@ class SimpleProtocolMobile(IProtocol):
             self._schedule_energy_consumption()
         elif timer == "charging_complete":
             self._complete_charging()
-        ping = SimpleMessage(sender=SenderType.DRONE, content=self.packets,id = self.provider.get_id())
+        ping = SimpleMessage(sender=SenderType.DRONE, content=self.packets,id = self.provider.get_id(),timestamp=self.provider.current_time())
 
         self.provider.send_communication_command(
             BroadcastMessageCommand(ping.to_json())
@@ -288,14 +295,35 @@ class SimpleProtocolMobile(IProtocol):
             self.provider.tracked_variables["packets"] = self.packets
             self.save_sensor_data()
             self.successful_nodes.add(message.id)  # message.content可以换成唯一ID（如sensor编号）这一行也是新加的
+            latency = self.provider.current_time() - message.timestamp
+            self.total_communication_latency += latency
+            self.communitaion_events_count += 1
 
     # 处理遥测数据
     def handle_telemetry(self, telemetry: Telemetry):
         # 将传入的遥测数据赋值给last_telemetry_message
         self.last_telemetry_message = telemetry
 
+        # 获取当前的 (x, y, z) 元组
+        current_x, current_y, current_z = telemetry.current_position
+
+        # 检查是否是第一次接收遥测数据
+        if self.last_telemetry_position is not None:
+            # 从存储的上一个位置元组中解包
+            prev_x, prev_y, prev_z = self.last_telemetry_position
+
+            distance = math.sqrt(
+                (current_x - prev_x) ** 2 +
+                (current_y - prev_y) ** 2 +
+                (current_z - prev_z) ** 2
+            )
+            self.total_flight_distance += distance
+
+        # 更新上一个位置为当前的 (x, y, z) 元组
+        self.last_telemetry_position = (current_x, current_y, current_z)
+
     def finish(self):
-        finish_statistics(self)
+        # finish_statistics(self)  结束统计数据
         with open(self.data_log_file, "a") as f:
             """下面这两行是统计一共收集到了多少数据"""
             f.write(f"Total Data from Sensors: {self.packets}\n")  # 强制写入当前数据
@@ -311,11 +339,24 @@ class SimpleProtocolMobile(IProtocol):
             f.write(f"Failed Communications: {fail_count}\n")
             f.write(f"Success Rate: {success_rate:.2%}\n")
             f.write(f"Failure Rate: {fail_rate:.2%}\n")
+            total_energy_consumed = 10000 - self.energy
+            efficiency = self.packets / total_energy_consumed if total_energy_consumed > 0 else 0
+            f.write(f"\nTotal Energy Consumed: {total_energy_consumed}\n")
+            f.write(f"Efficiency (Data per Unit Energy): {efficiency:.4f} packets/unit_energy\n")
+
+            #总飞行距离
+            f.write(f"\n总飞行距离: {self.total_flight_distance}\n")
+
+            #总通信时延
+            f.write(f"\n总通信时延: {self.total_communication_latency}\n")
+
+            #平均通信时延
+            f.write(f"\n平均通信时延: {self.total_communication_latency / self.communitaion_events_count}\n")
 
     def _schedule_energy_consumption(self):
         """每秒减少电量，低电量时触发充电"""
         if not self.is_charging:
-            self.energy -= self.energy_consumption_rate
+            self.energy -= self.energy_consumption_rate                              #这个地方为了保持满电，我先将减号改成加号
             self._logger.info(f"Energy level: {self.energy}")
 
             if self.energy <= self.low_energy_threshold:

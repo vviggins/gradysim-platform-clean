@@ -19,7 +19,7 @@ def add_sensors_from_file(builder, file_path):
     try:
         with open(file_path, 'r') as file:
             for line in file:
-                # 解析 x, y, z 坐标
+                # 解析 x, y, z 坐标`
                 x, y, z = map(float, line.strip().split(','))  
                 # 添加传感器节点
                 builder.add_node(SimpleProtocolSensor, (x, y, z))
@@ -27,13 +27,13 @@ def add_sensors_from_file(builder, file_path):
         print(f"✅ 传感器节点已成功加载自文件: {file_path}")
 
     except FileNotFoundError:
-        print(f"❌ 错误: 文件 {file_path} 未找到")
+        print(f" 错误: 文件 {file_path} 未找到")
     except ValueError:
-        print(f"❌ 错误: 文件 {file_path} 格式错误，每行应为 'x, y, z'")
+        print(f" 错误: 文件 {file_path} 格式错误，每行应为 'x, y, z'")
 
 def run_simulation(real_time: bool):
-    builder = SimulationBuilder(SimulationConfiguration(duration=25, debug=True, real_time=real_time))
-    builder.add_handler(CommunicationHandler(CommunicationMedium(transmission_range=5,failure_rate=0.7)))
+    builder = SimulationBuilder(SimulationConfiguration(duration=100, debug=True, real_time=30))
+    builder.add_handler(CommunicationHandler(CommunicationMedium(transmission_range=0.4,failure_rate=0.5,delay = 0.005)))
     builder.add_handler(TimerHandler())
     builder.add_handler(MobilityHandler())
 
@@ -44,7 +44,7 @@ def run_simulation(real_time: bool):
     builder.add_node(SimpleProtocolGround, (-6.9, 0.0, 0.0))
 
     # Drone locations无人机 目前一个就行
-    builder.add_node(SimpleProtocolMobile, (-6.9, 0.0, 0.0))
+    builder.add_node(SimpleProtocolMobile, (0, 0.0, 0.0))
     # builder.add_node(SimpleProtocolMobile, (-3.9000000000000004, -3.0, 0.0))
     # builder.add_node(SimpleProtocolMobile, (-3.9000000000000004, 3.0, 0.0))
     # builder.add_node(SimpleProtocolMobile, (-0.9000000000000004, -6.0, 0.0))

@@ -48,13 +48,13 @@ class VisualizationConfiguration:
     receives the information from the simulation.
     """
 
-    x_range: Tuple[float, float] = (-50, 50)
+    x_range: Tuple[float, float] = (-100, 100)
     """Range of the X axis of the visualization in meters"""
 
-    y_range: Tuple[float, float] = (-50, 50)
+    y_range: Tuple[float, float] = (-100, 100)
     """Range of the Y axis of the visualization in meters"""
 
-    z_range: Tuple[float, float] = (0, 50)
+    z_range: Tuple[float, float] = (0, 20)
     """Range of the Z axis of the visualization in meters"""
 
     host: str = "localhost"

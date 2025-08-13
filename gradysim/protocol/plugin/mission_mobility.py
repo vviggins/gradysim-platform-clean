@@ -18,7 +18,7 @@ class LoopMission(enum.Enum):
 
 @dataclass
 class MissionMobilityConfiguration:
-    speed: float = 5
+    speed: float = 10
     """Speed in m/s the node will travel at during the mission"""
 
     loop_mission: LoopMission = LoopMission.NO
@@ -29,7 +29,7 @@ class MissionMobilityConfiguration:
     reverse until the first waypoint, when it will start travelling the mission normally again.
     """
 
-    tolerance: float = 0.5
+    tolerance: float = 0.3
     """
     If the node is within this distance of a waypoint it is considered to have reached it.
     """
